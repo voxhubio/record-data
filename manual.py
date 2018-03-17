@@ -1,4 +1,4 @@
-# Silvius microphone client based on Tanel's client.py
+# Manual audio recording script, based on Silvius
 __author__ = 'dwk'
 
 import argparse
@@ -87,10 +87,6 @@ class MyClient(WebSocketClient):
                 # currently raised when the socket gets closed by main thread
                 pass
 
-            # to voluntarily close the connection, we would use
-            #self.send_data("")
-            #self.send("EOS")
-
             try:
                 self.close()
             except IOError:
@@ -134,15 +130,10 @@ class MyClient(WebSocketClient):
 
 
     def closed(self, code, reason=None):
-        #print "Websocket closed() called"
-        #print >> sys.stderr
         pass
 
 
 def setup():
-    content_type = "audio/x-raw, layout=(string)interleaved, rate=(int)16000, format=(string)S16LE, channels=(int)1"
-    path = 'client/ws/speech'
-
     parser = argparse.ArgumentParser(description='Microphone client for silvius')
     parser.add_argument('-s', '--server', default="localhost", dest="server", help="Speech-recognition server")
     parser.add_argument('-p', '--port', default="8019", dest="port", help="Server port")
@@ -176,8 +167,6 @@ def run(args, content_type, path):
     ws = MyClient(uri, byterate=16000, mic=args.device, show_hypotheses=args.hypotheses,
                   save_adaptation_state_filename=args.save_adaptation_state, send_adaptation_state_filename=args.send_adaptation_state, audio_gate=args.audio_gate)
     ws.connect()
-    #result = ws.get_full_hyp()
-    #print result.encode('utf-8')
     ws.run_forever()
 
 def main():
