@@ -1,0 +1,3 @@
+[submodule "pynput"]
+	path = pynput
+	url = git@github.com:moses-palmer/pynput.git
