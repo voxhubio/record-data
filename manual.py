@@ -98,21 +98,25 @@ class SpeechRecorder():
         self.thread.join()
 
 class KeyRecorder():
-    def __init__(self):
+    def __init__(self, filename):
         self.listener = None
+        self.file = open(filename, "w")
 
     def start(self):
         def on_press(key):
-            try:
-                print('alphanumeric key {0} pressed'.format(key.char))
-            except AttributeError:
-                print('special key {0} pressed'.format(key))
+            #try:
+            #    print('alphanumeric key {0} pressed'.format(key.char))
+            #except AttributeError:
+            #    print('special key {0} pressed'.format(key))
+            sys.stderr.write("+")
+            t = "%.02f" % time.time()
+            print >> self.file, t, "v", key
 
         def on_release(key):
-            print('{0} released'.format(key))
-            if key == keyboard.Key.esc:
-                # Stop listener
-                return False
+            #print('{0} released'.format(key))
+            sys.stderr.write("-")
+            t = "%.02f" % time.time()
+            print >> self.file, t, "^", key
 
         print >> sys.stderr, "\nRecording keypresses..."
 
@@ -124,6 +128,8 @@ class KeyRecorder():
         self.listener.stop()
     def join(self):
         self.listener.join()
+        self.file.close()
+        print >> sys.stderr, "Stop recording keypresses"
 
 
 class Recorder():
@@ -137,16 +143,20 @@ class Recorder():
         #parser.add_argument('-k', '--keep-going', action="store_true", help="Keep reconnecting to the server after periods of silence")
         #parser.add_argument('-g', '--audio-gate', default=0, type=int, help="Audio-gate level to reduce detections when not talking")
         parser.add_argument('-o', '--output-directory', default='.', help="Directory to save recorded audio and keystrokes")
+        parser.add_argument('-n', '--name', default='rec', help="Name of recordings, useful to tag with physical location")
         parser.add_argument('-A', '--log-audio', default=1, action="store_true", help="Record and log audio (enabled by default)")
         parser.add_argument('-L', '--log-keystrokes', action="store_true", help="Record and log all X11 keystrokes")
         args = parser.parse_args()
+
+        filename_time = "%.02f" % time.time()
+        filename_prefix = args.output_directory + '/' + args.name + "-" + filename_time
 
         if(args.log_audio):
             self.speech_recorder = SpeechRecorder(byterate=16000, mic=args.device)
             self.speech_recorder.start()
 
         if(args.log_keystrokes):
-            self.key_recorder = KeyRecorder()
+            self.key_recorder = KeyRecorder(filename=filename_prefix + ".txt")
             self.key_recorder.start()
 
     def main(self):
