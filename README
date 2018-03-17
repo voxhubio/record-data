@@ -1,0 +1,17 @@
+This repository contains scripts to collect data for speech recognition.
+
+The script manual.py records audio and also records all X11 keystrokes as they
+are manually entered. (It should work on other platforms, but has only been
+tested on Linux.) This is useful if your speech is being interpreted by another
+speech recognition system, or by a human typist. To use it, try:
+
+    $ python manual.py -L -o /tmp
+
+This will generate .flac and .txt files with audio recordings and keypresses.
+Press CTRL-C to stop the recording, and it will exit safely. Due to a bug in
+the keystroke handler, you may need to press one additional key (e.g. CTRL)
+before the keystroke thread exits.
+
+To check microphone device numbers, use
+
+    $ python list-mics.py
