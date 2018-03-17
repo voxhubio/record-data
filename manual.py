@@ -6,14 +6,17 @@ import argparse
 import threading
 import time     # for generating unique filenames
 from pynput import keyboard  # for recording keypresses
+import soundfile
 
 reconnect_mode = False
 fatal_error = False
 
 class SpeechRecorder():
-    def __init__(self, mic=1, byterate=16000):
+    def __init__(self, filename, mic=1, byterate=16000):
         self.mic = mic
         self.byterate = byterate
+        self.filename = filename
+        self.file = None
         self.chunk = 0
         self.audio_gate = 0
         self.running = False
@@ -26,6 +29,11 @@ class SpeechRecorder():
         pa = pyaudio.PyAudio()
         sample_rate = self.byterate
         stream = None 
+        self.file = soundfile.SoundFile(file = self.filename,
+            mode = 'w',
+            samplerate = sample_rate,
+            channels = 1,
+            subtype = 'PCM_16')
         
         while stream is None:
             try:
@@ -92,17 +100,21 @@ class SpeechRecorder():
 
     def handle_data(self, data):
         sys.stderr.write('.')
+        self.file.buffer_write(data, dtype = 'int16')
     def stop(self):
         self.running = False
     def join(self):
         self.thread.join()
+        self.file.close()
 
 class KeyRecorder():
     def __init__(self, filename):
         self.listener = None
-        self.file = open(filename, "w")
+        self.filename = filename
+        self.file = None
 
     def start(self):
+        self.file = open(self.filename, "w")
         def on_press(key):
             #try:
             #    print('alphanumeric key {0} pressed'.format(key.char))
@@ -144,6 +156,7 @@ class Recorder():
         #parser.add_argument('-g', '--audio-gate', default=0, type=int, help="Audio-gate level to reduce detections when not talking")
         parser.add_argument('-o', '--output-directory', default='.', help="Directory to save recorded audio and keystrokes")
         parser.add_argument('-n', '--name', default='rec', help="Name of recordings, useful to tag with physical location")
+        parser.add_argument('-f', '--file-format', default='flac', help="Audio file format to use (suggest wav, flac)")
         parser.add_argument('-A', '--log-audio', default=1, action="store_true", help="Record and log audio (enabled by default)")
         parser.add_argument('-L', '--log-keystrokes', action="store_true", help="Record and log all X11 keystrokes")
         args = parser.parse_args()
@@ -152,7 +165,8 @@ class Recorder():
         filename_prefix = args.output_directory + '/' + args.name + "-" + filename_time
 
         if(args.log_audio):
-            self.speech_recorder = SpeechRecorder(byterate=16000, mic=args.device)
+            self.speech_recorder = SpeechRecorder(byterate=16000, mic=args.device,
+                filename=filename_prefix + "." + args.file_format)
             self.speech_recorder.start()
 
         if(args.log_keystrokes):
