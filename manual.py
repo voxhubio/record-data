@@ -16,6 +16,8 @@ class SpeechRecorder():
         self.byterate = byterate
         self.chunk = 0
         self.audio_gate = 0
+        self.running = False
+        self.thread = None
 
     def start(self):
         # these imports are here to avoid their debugging output earlier
@@ -58,7 +60,7 @@ class SpeechRecorder():
             try:
                 print >> sys.stderr, "\nLISTENING TO MICROPHONE"
                 last_state = None
-                while True:
+                while self.running:
                     data = stream.read(self.chunk)
                     if self.audio_gate > 0:
                         rms = audioop.rms(data, 2)
@@ -69,7 +71,7 @@ class SpeechRecorder():
                     if sample_rate != self.byterate:
                         (data, last_state) = audioop.ratecv(data, 2, 1, sample_rate, self.byterate, last_state)
 
-                    #self.send_data(data)
+                    self.handle_data(data)
             except IOError, e:
                 # usually a broken pipe
                 print e
@@ -78,13 +80,22 @@ class SpeechRecorder():
                 pass
             print >> sys.stderr, "Stop listening to microphone"
 
-            try:
-                self.close()
-            except IOError:
-                pass
+            #try:
+            #    self.close()
+            #except IOError:
+            #    pass
+            self.running = False
 
-        threading.Thread(target=mic_to_ws).start()
+        self.running = True
+        self.thread = threading.Thread(target=mic_to_ws)
+        self.thread.start()
 
+    def handle_data(self, data):
+        sys.stderr.write('.')
+    def stop(self):
+        self.running = False
+    def join(self):
+        self.thread.join()
 
 class KeyRecorder():
     def __init__(self):
@@ -116,20 +127,26 @@ class KeyRecorder():
 
 
 class Recorder():
+    def __init__(self):
+        self.speech_recorder = None
+        self.key_recorder = None
+
     def setup(self):
         parser = argparse.ArgumentParser(description='Microphone client for silvius')
         parser.add_argument('-d', '--device', default="-1", dest="device", type=int, help="Select a different microphone (give device ID)")
         #parser.add_argument('-k', '--keep-going', action="store_true", help="Keep reconnecting to the server after periods of silence")
         #parser.add_argument('-g', '--audio-gate', default=0, type=int, help="Audio-gate level to reduce detections when not talking")
         parser.add_argument('-o', '--output-directory', default='.', help="Directory to save recorded audio and keystrokes")
+        parser.add_argument('-A', '--log-audio', default=1, action="store_true", help="Record and log audio (enabled by default)")
         parser.add_argument('-L', '--log-keystrokes', action="store_true", help="Record and log all X11 keystrokes")
         args = parser.parse_args()
 
-        #self.speech_recorder = SpeechRecorder(byterate=16000, mic=args.device)
-        #self.speech_recorder.start()
+        if(args.log_audio):
+            self.speech_recorder = SpeechRecorder(byterate=16000, mic=args.device)
+            self.speech_recorder.start()
 
-        self.key_recorder = KeyRecorder()
         if(args.log_keystrokes):
+            self.key_recorder = KeyRecorder()
             self.key_recorder.start()
 
     def main(self):
@@ -140,8 +157,11 @@ class Recorder():
         except KeyboardInterrupt:
             print >> sys.stderr, "\nexiting..."
 
-        self.key_recorder.stop()
-        self.key_recorder.join()
+        if(self.speech_recorder != None):   self.speech_recorder.stop()
+        if(self.key_recorder != None):      self.key_recorder.stop()
+        if(self.speech_recorder != None):   self.speech_recorder.join()
+        if(self.key_recorder != None):      self.key_recorder.join()
+        print >> sys.stderr, "done."
 
 if __name__ == "__main__":
     Recorder().main()
